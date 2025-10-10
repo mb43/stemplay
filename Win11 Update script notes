@@ -1,0 +1,50 @@
+Key Features
+✅ Prerequisite checks: TPM 2.0, Secure Boot, RAM, disk space
+✅ Registry block removal: Clears upgrade restrictions
+✅ Unattended installation: No user interaction required
+✅ Comprehensive logging: Tracks all steps
+✅ Error handling: Exit codes for monitoring
+Important Setup Requirements
+1. Host the Windows 11 ISO
+The script expects a Windows 11 ISO. You have two options:
+Option A - Network Share (Recommended for enterprise):
+powershell# Update line 95 in script to:
+$ISOPath = "\\your-server\deployment\Windows11_23H2_x64.iso"
+Option B - Download ISO manually:
+
+Download from Microsoft: https://www.microsoft.com/software-download/windows11
+Place at: C:\Windows\Temp\Win11.iso
+
+2. Disk Space Requirements
+
+Minimum free space: 25 GB
+Recommended: 30-35 GB for safety
+
+3. Remote Deployment Methods
+Via PSExec:
+powershellpsexec \\TARGET-PC -s powershell.exe -ExecutionPolicy Bypass -File "\\server\scripts\Win11Upgrade.ps1"
+Via Group Policy / Startup Script:
+
+Deploy as computer startup script
+Runs with SYSTEM privileges
+
+Via RMM Tool (e.g., ConnectWise, Ninja, Datto):
+
+Upload script to your RMM
+Deploy to target device collection
+
+4. Test First!
+powershell# Test run with verbose logging
+.\Win11Upgrade.ps1 -Verbose
+Exit Codes
+
+0: Success
+1: Not running as admin
+2: System requirements not met
+3: Registry block removal failed
+4: ISO not found
+5: ISO mount failed
+6: Upgrade start failed
+
+Monitoring Progress
+Check the log file: C:\Windows\Temp\Win11Upgrade.log
