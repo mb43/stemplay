@@ -20,7 +20,7 @@ body{
 /* ===== Import Screen ===== */
 #import-screen{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  height:100vh;gap:24px
+  min-height:100vh;gap:24px;padding:40px 20px;overflow-y:auto
 }
 .app-title{font-size:2.5rem;font-weight:700;letter-spacing:-0.02em}
 .app-subtitle{color:var(--text-dim);font-size:1.1rem;margin-top:-16px}
@@ -34,6 +34,38 @@ body{
 .drop-zone-text{color:var(--text-dim);text-align:center;line-height:1.6}
 .drop-zone-text strong{color:var(--accent)}
 .format-note{color:var(--text-dim);font-size:.85rem;max-width:500px;text-align:center;line-height:1.5}
+
+/* Workflow steps */
+.workflow{max-width:680px;width:90vw;margin-top:8px}
+.workflow h2{font-size:1rem;color:var(--text-dim);margin-bottom:16px;text-align:center;font-weight:400}
+.steps{display:flex;gap:16px}
+.step{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.step-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:50%;background:var(--accent);
+  font-size:.85rem;font-weight:700;margin-bottom:12px
+}
+.step h3{font-size:.95rem;margin-bottom:8px}
+.step p{color:var(--text-dim);font-size:.85rem;line-height:1.5;margin-bottom:12px}
+.step code{
+  display:block;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:10px 12px;font-size:.8rem;line-height:1.6;white-space:pre-wrap;
+  word-break:break-all;font-family:'SF Mono',Menlo,monospace;color:var(--green);
+  margin-bottom:8px;cursor:pointer;position:relative
+}
+.step code:hover{border-color:var(--accent)}
+.step code::after{
+  content:'click to copy';position:absolute;top:4px;right:8px;
+  font-size:.65rem;color:var(--text-dim);font-family:inherit
+}
+.step code.copied::after{content:'copied!';color:var(--green)}
+.step .alt{color:var(--text-dim);font-size:.8rem;font-style:italic}
+.arrow{display:flex;align-items:center;color:var(--text-dim);font-size:1.5rem;flex-shrink:0}
+
+@media(max-width:768px){
+  .steps{flex-direction:column}
+  .arrow{justify-content:center;transform:rotate(90deg)}
+}
 
 /* ===== Player Screen ===== */
 #player-screen{display:none;height:100vh;grid-template-columns:280px 1fr}
@@ -157,18 +189,43 @@ body{
 <!-- ===== Import Screen ===== -->
 <div id="import-screen">
   <h1 class="app-title">Stem Player</h1>
-  <p class="app-subtitle">Load your stem-split audio files and mix</p>
-  <div class="drop-zone" id="drop-zone">
-    <div class="drop-zone-icon">&#128194;</div>
-    <div class="drop-zone-text">
-      <strong>Click to select your stems folder</strong><br>
-      or drag and drop it here
+  <p class="app-subtitle">Split your FLAC files into stems, then play and mix them here</p>
+
+  <div class="workflow">
+    <div class="steps">
+      <!-- Step 1: Split -->
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Split your FLACs into stems</h3>
+        <p>Run this in Terminal on your Mac. It auto-installs Demucs and splits every FLAC into vocals, drums, bass &amp; other:</p>
+        <code id="cmd-quick">pip3 install demucs
+demucs --out ~/stems ~/Music/*.flac</code>
+        <p>Or use the included batch script for progress tracking:</p>
+        <code id="cmd-script">./split-stems.sh ~/Music ~/stems</code>
+        <p class="alt">Alternative: use Logic Pro's built-in Stem Splitter and export each track.</p>
+      </div>
+
+      <div class="arrow">&#8594;</div>
+
+      <!-- Step 2: Load & Play -->
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Load stems and play</h3>
+        <p>Select the output folder (e.g. ~/stems). The app finds all songs and their stems automatically.</p>
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-zone-icon">&#128194;</div>
+          <div class="drop-zone-text">
+            <strong>Click to select your stems folder</strong><br>
+            or drag and drop it here
+          </div>
+        </div>
+        <p class="format-note" style="margin-top:12px">
+          Supports FLAC, WAV, MP3, OGG, AAC, M4A
+        </p>
+      </div>
     </div>
   </div>
-  <p class="format-note">
-    Expects a folder with subfolders per song, each containing stem files (vocals.wav, drums.wav, etc.).<br>
-    Supports FLAC, WAV, MP3, OGG, AAC, M4A.
-  </p>
+
   <input type="file" id="folder-input" webkitdirectory multiple hidden>
 </div>
 
@@ -470,6 +527,16 @@ progressBar.addEventListener('click',e=>{
 // Keyboard
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'&&e.target===document.body){e.preventDefault();playBtn.click();}
+});
+
+// Click-to-copy on code blocks
+document.querySelectorAll('.step code').forEach(block=>{
+  block.addEventListener('click',()=>{
+    navigator.clipboard.writeText(block.textContent.trim()).then(()=>{
+      block.classList.add('copied');
+      setTimeout(()=>block.classList.remove('copied'),1500);
+    });
+  });
 });
 </script>
 </body>
