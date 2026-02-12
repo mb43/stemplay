@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stem Player</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0a;--surface:#141414;--surface2:#1e1e1e;--border:#2a2a2a;
+  --text:#e5e5e5;--text-dim:#888;--accent:#7c3aed;--accent-h:#8b5cf6;
+  --red:#ef4444;--green:#22c55e;--yellow:#eab308;--blue:#3b82f6;
+  --pink:#ec4899;--orange:#f97316;--cyan:#06b6d4
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);height:100vh;overflow:hidden
+}
+
+/* ===== Import Screen ===== */
+#import-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100vh;gap:24px
+}
+.app-title{font-size:2.5rem;font-weight:700;letter-spacing:-0.02em}
+.app-subtitle{color:var(--text-dim);font-size:1.1rem;margin-top:-16px}
+.drop-zone{
+  width:500px;max-width:90vw;height:250px;border:2px dashed var(--border);
+  border-radius:16px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;cursor:pointer;transition:all .2s
+}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(124,58,237,.05)}
+.drop-zone-icon{font-size:3rem;opacity:.5}
+.drop-zone-text{color:var(--text-dim);text-align:center;line-height:1.6}
+.drop-zone-text strong{color:var(--accent)}
+.format-note{color:var(--text-dim);font-size:.85rem;max-width:500px;text-align:center;line-height:1.5}
+
+/* ===== Player Screen ===== */
+#player-screen{display:none;height:100vh;grid-template-columns:280px 1fr}
+#player-screen.active{display:grid}
+
+/* Sidebar */
+#sidebar{
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden
+}
+.sidebar-header{
+  padding:20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between
+}
+.sidebar-title{font-size:1.1rem;font-weight:600}
+.song-count{color:var(--text-dim);font-size:.85rem}
+.load-btn{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.85rem;transition:all .2s
+}
+.load-btn:hover{background:var(--accent);border-color:var(--accent)}
+#song-list{flex:1;overflow-y:auto;padding:8px}
+.song-item{
+  padding:12px 16px;border-radius:8px;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:12px
+}
+.song-item:hover{background:var(--surface2)}
+.song-item.active{background:var(--accent)}
+.song-num{color:var(--text-dim);font-size:.85rem;width:24px;text-align:right;flex-shrink:0}
+.song-item.active .song-num{color:rgba(255,255,255,.7)}
+.song-name{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Main */
+#main{display:flex;flex-direction:column;overflow:hidden}
+
+/* Transport */
+#transport{padding:24px 32px;border-bottom:1px solid var(--border);background:var(--surface)}
+.now-playing{font-size:1.4rem;font-weight:600;margin-bottom:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.transport-controls{display:flex;align-items:center;gap:16px}
+.play-btn{
+  width:48px;height:48px;border-radius:50%;background:var(--accent);border:none;
+  color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:all .15s;flex-shrink:0
+}
+.play-btn:hover{background:var(--accent-h);transform:scale(1.05)}
+.stop-btn{
+  width:40px;height:40px;border-radius:50%;background:var(--surface2);
+  border:1px solid var(--border);color:var(--text);font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0
+}
+.stop-btn:hover{background:var(--border)}
+.progress-container{flex:1;display:flex;align-items:center;gap:12px}
+.time-display{
+  font-size:.85rem;color:var(--text-dim);font-variant-numeric:tabular-nums;
+  flex-shrink:0;min-width:45px
+}
+.progress-bar{
+  flex:1;height:6px;background:var(--surface2);border-radius:3px;
+  cursor:pointer;position:relative;overflow:hidden
+}
+.progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;pointer-events:none}
+.progress-bar:hover .progress-fill{background:var(--accent-h)}
+
+/* Stems */
+#stems-area{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:12px}
+.stem-track{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px 20px;display:flex;align-items:center;gap:16px;transition:opacity .2s
+}
+.stem-track.muted{opacity:.35}
+.stem-color{width:4px;height:40px;border-radius:2px;flex-shrink:0}
+.stem-name{font-weight:500;width:100px;flex-shrink:0;text-transform:capitalize}
+.stem-buttons{display:flex;gap:8px;flex-shrink:0}
+.mute-btn,.solo-btn{
+  width:36px;height:36px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text-dim);font-size:.8rem;font-weight:700;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center
+}
+.mute-btn:hover{border-color:var(--red);color:var(--red)}
+.solo-btn:hover{border-color:var(--yellow);color:var(--yellow)}
+.mute-btn.active{background:var(--red);border-color:var(--red);color:#fff}
+.solo-btn.active{background:var(--yellow);border-color:var(--yellow);color:#000}
+.stem-volume{
+  flex:1;-webkit-appearance:none;appearance:none;height:6px;
+  background:var(--surface2);border-radius:3px;outline:none;cursor:pointer
+}
+.stem-volume::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--text);cursor:pointer;transition:all .15s
+}
+.stem-volume::-webkit-slider-thumb:hover{transform:scale(1.2);background:var(--accent)}
+.stem-volume::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;background:var(--text);
+  cursor:pointer;border:none
+}
+.vol-label{
+  font-size:.85rem;color:var(--text-dim);width:40px;text-align:right;
+  flex-shrink:0;font-variant-numeric:tabular-nums
+}
+.no-song{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-dim);font-size:1.1rem}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+
+/* Responsive */
+@media(max-width:768px){
+  #player-screen.active{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  #sidebar{max-height:180px}
+  .stem-name{width:70px;font-size:.85rem}
+  #transport{padding:16px}
+  #stems-area{padding:16px}
+  .now-playing{font-size:1.1rem;margin-bottom:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Import Screen ===== -->
+<div id="import-screen">
+  <h1 class="app-title">Stem Player</h1>
+  <p class="app-subtitle">Load your stem-split audio files and mix</p>
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-zone-icon">&#128194;</div>
+    <div class="drop-zone-text">
+      <strong>Click to select your stems folder</strong><br>
+      or drag and drop it here
+    </div>
+  </div>
+  <p class="format-note">
+    Expects a folder with subfolders per song, each containing stem files (vocals.wav, drums.wav, etc.).<br>
+    Supports FLAC, WAV, MP3, OGG, AAC, M4A.
+  </p>
+  <input type="file" id="folder-input" webkitdirectory multiple hidden>
+</div>
+
+<!-- ===== Player Screen ===== -->
+<div id="player-screen">
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <div>
+        <div class="sidebar-title">Songs</div>
+        <div class="song-count" id="song-count"></div>
+      </div>
+      <button class="load-btn" id="reload-btn">Load New</button>
+    </div>
+    <div id="song-list"></div>
+  </div>
+  <div id="main">
+    <div id="transport">
+      <div class="now-playing" id="now-playing">Select a song</div>
+      <div class="transport-controls">
+        <button class="play-btn" id="play-btn" title="Play / Pause (Space)">&#9654;</button>
+        <button class="stop-btn" id="stop-btn" title="Stop">&#9632;</button>
+        <div class="progress-container">
+          <span class="time-display" id="cur-time">0:00</span>
+          <div class="progress-bar" id="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <span class="time-display" id="tot-time">0:00</span>
+        </div>
+      </div>
+    </div>
+    <div id="stems-area">
+      <div class="no-song">Select a song from the sidebar to begin</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================================================
+   Stem Player - client-side multi-track audio player
+   All audio stays on your machine; nothing is uploaded.
+   ====================================================================== */
+
+const AUDIO_EXT = new Set(['wav','mp3','flac','ogg','aac','m4a','webm','opus']);
+const STEM_COLORS = {
+  vocals:'#ec4899', voice:'#ec4899', drums:'#f97316', bass:'#3b82f6',
+  other:'#22c55e', piano:'#eab308', guitar:'#ef4444', synth:'#06b6d4',
+  keys:'#8b5cf6', strings:'#d946ef', melody:'#14b8a6', accompaniment:'#a855f7',
+  mix:'#7c3aed'
+};
+const FALLBACK_COLORS = ['#7c3aed','#06b6d4','#f97316','#22c55e','#ec4899','#eab308','#ef4444','#8b5cf6'];
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function fmt(s){
+  if(!s||isNaN(s))return '0:00';
+  const m=Math.floor(s/60), sec=Math.floor(s%60);
+  return m+':'+String(sec).padStart(2,'0');
+}
+
+// ── Player class ─────────────────────────────────────────────────────────
+class StemPlayer {
+  constructor(){
+    this.ctx=null; this.songs=new Map(); this.currentSong=null;
+    this.stems=[]; this.playing=false; this.raf=null; this.dur=0;
+  }
+
+  _initCtx(){
+    if(!this.ctx) this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(this.ctx.state==='suspended') this.ctx.resume();
+  }
+
+  /* Parse a folder of files into songs → stems */
+  loadFiles(files){
+    this.songs.clear();
+    for(const f of files){
+      const ext=f.name.split('.').pop().toLowerCase();
+      if(!AUDIO_EXT.has(ext)) continue;
+      const parts=f.webkitRelativePath.split('/');
+      let song,stem;
+      if(parts.length>=3){
+        song=parts[parts.length-2];
+        stem=parts[parts.length-1].replace(/\.[^.]+$/,'');
+      } else if(parts.length===2){
+        const base=parts[1].replace(/\.[^.]+$/,'');
+        const m=base.match(/^(.+?)[\s_\-]+(vocals|voice|drums|bass|other|piano|guitar|synth|keys|strings|melody|accompaniment)$/i);
+        if(m){ song=m[1].trim(); stem=m[2].toLowerCase(); }
+        else { song=base; stem='mix'; }
+      } else continue;
+      if(!this.songs.has(song)) this.songs.set(song,new Map());
+      this.songs.get(song).set(stem,f);
+    }
+    return this.songs.size;
+  }
+
+  /* Load a song's stems into the audio engine */
+  async selectSong(name){
+    this.stop(); this._cleanup();
+    this.currentSong=name;
+    const map=this.songs.get(name);
+    if(!map) return;
+    this._initCtx();
+    this.stems=[]; this.dur=0;
+    let ci=0;
+    for(const [stem,file] of map){
+      const audio=new Audio();
+      audio.preload='auto';
+      const url=URL.createObjectURL(file);
+      audio.src=url;
+      await new Promise((res,rej)=>{
+        if(audio.readyState>=1) return res();
+        audio.addEventListener('loadedmetadata',res,{once:true});
+        audio.addEventListener('error',rej,{once:true});
+      });
+      const src=this.ctx.createMediaElementSource(audio);
+      const gain=this.ctx.createGain();
+      src.connect(gain); gain.connect(this.ctx.destination);
+      const color=STEM_COLORS[stem.toLowerCase()]||FALLBACK_COLORS[ci%FALLBACK_COLORS.length];
+      ci++;
+      this.stems.push({name:stem,audio,src,gain,url,muted:false,soloed:false,vol:1,color});
+      if(audio.duration>this.dur) this.dur=audio.duration;
+    }
+  }
+
+  play(){
+    if(!this.stems.length) return;
+    this._initCtx();
+    const t=this.stems[0].audio.currentTime;
+    for(const s of this.stems){ s.audio.currentTime=t; s.audio.play(); }
+    this.playing=true; this._tick();
+  }
+  pause(){
+    for(const s of this.stems) s.audio.pause();
+    this.playing=false; this._stopTick();
+  }
+  stop(){
+    for(const s of this.stems){ s.audio.pause(); s.audio.currentTime=0; }
+    this.playing=false; this._stopTick(); this._updateUI(0);
+  }
+  seek(frac){
+    const t=frac*this.dur, was=this.playing;
+    for(const s of this.stems) s.audio.currentTime=t;
+    if(was) for(const s of this.stems) s.audio.play();
+    this._updateUI(t);
+  }
+
+  toggleMute(i){
+    const s=this.stems[i]; if(!s)return; s.muted=!s.muted; this._applyGains(); return s.muted;
+  }
+  toggleSolo(i){
+    const s=this.stems[i]; if(!s)return; s.soloed=!s.soloed; this._applyGains(); return s.soloed;
+  }
+  setVol(i,v){
+    const s=this.stems[i]; if(!s)return; s.vol=v; this._applyGains();
+  }
+
+  _applyGains(){
+    const any=this.stems.some(s=>s.soloed);
+    for(const s of this.stems){
+      let v=s.vol;
+      if(s.muted) v=0;
+      else if(any&&!s.soloed) v=0;
+      s.gain.gain.setValueAtTime(v,this.ctx.currentTime);
+    }
+  }
+
+  _tick(){
+    if(!this.playing) return;
+    const t=this.stems[0]?.audio.currentTime||0;
+    this._updateUI(t);
+    if(t>=this.dur-0.05){ this.stop(); return; }
+    this.raf=requestAnimationFrame(()=>this._tick());
+  }
+  _stopTick(){ if(this.raf){cancelAnimationFrame(this.raf);this.raf=null;} }
+  _updateUI(t){
+    const fill=document.getElementById('progress-fill');
+    const cur=document.getElementById('cur-time');
+    const tot=document.getElementById('tot-time');
+    if(fill) fill.style.width=(this.dur>0?(t/this.dur)*100:0)+'%';
+    if(cur) cur.textContent=fmt(t);
+    if(tot) tot.textContent=fmt(this.dur);
+  }
+  _cleanup(){
+    for(const s of this.stems){ s.audio.pause(); s.audio.src=''; URL.revokeObjectURL(s.url); }
+    this.stems=[];
+  }
+  time(){ return this.stems[0]?.audio.currentTime||0; }
+}
+
+// ── UI wiring ────────────────────────────────────────────────────────────
+const P=new StemPlayer();
+
+const $=id=>document.getElementById(id);
+const importScreen=$('import-screen'), playerScreen=$('player-screen');
+const dropZone=$('drop-zone'), folderInput=$('folder-input');
+const songListEl=$('song-list'), songCountEl=$('song-count');
+const nowPlaying=$('now-playing'), playBtn=$('play-btn'), stopBtn=$('stop-btn');
+const progressBar=$('progress-bar'), stemsArea=$('stems-area');
+const reloadBtn=$('reload-btn');
+
+// File loading
+dropZone.addEventListener('click',()=>folderInput.click());
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');load(e.dataTransfer.files);});
+folderInput.addEventListener('change',e=>load(e.target.files));
+reloadBtn.addEventListener('click',()=>{
+  P.stop();P._cleanup();
+  playerScreen.classList.remove('active');importScreen.style.display='';
+  folderInput.value='';folderInput.click();
+});
+
+function load(files){
+  const n=P.loadFiles(files);
+  if(!n){alert('No audio files found. Select a folder with subfolders per song, each containing stem audio files.');return;}
+  importScreen.style.display='none';
+  playerScreen.classList.add('active');
+  renderSongs();
+}
+
+function renderSongs(){
+  songListEl.innerHTML='';
+  songCountEl.textContent=P.songs.size+' song'+(P.songs.size!==1?'s':'');
+  let i=1;
+  for(const [name] of P.songs){
+    const el=document.createElement('div');
+    el.className='song-item';
+    el.innerHTML=`<span class="song-num">${i}</span><span class="song-name" title="${name}">${name}</span>`;
+    el.addEventListener('click',()=>openSong(name));
+    songListEl.appendChild(el); i++;
+  }
+}
+
+async function openSong(name){
+  const names=[...P.songs.keys()];
+  document.querySelectorAll('.song-item').forEach((el,i)=>el.classList.toggle('active',names[i]===name));
+  nowPlaying.textContent=name;
+  playBtn.innerHTML='&#9654;';
+  stemsArea.innerHTML='<div class="no-song">Loading stems...</div>';
+  try{ await P.selectSong(name); }
+  catch(e){ stemsArea.innerHTML='<div class="no-song">Error: '+e.message+'</div>'; return; }
+  renderStems();
+  P._updateUI(0);
+}
+
+function renderStems(){
+  stemsArea.innerHTML='';
+  P.stems.forEach((s,i)=>{
+    const t=document.createElement('div');
+    t.className='stem-track'; t.id='st-'+i;
+    t.innerHTML=`
+      <div class="stem-color" style="background:${s.color}"></div>
+      <div class="stem-name">${s.name}</div>
+      <div class="stem-buttons">
+        <button class="mute-btn" data-i="${i}" title="Mute">M</button>
+        <button class="solo-btn" data-i="${i}" title="Solo">S</button>
+      </div>
+      <input type="range" class="stem-volume" min="0" max="100" value="100" data-i="${i}">
+      <span class="vol-label">100%</span>`;
+    stemsArea.appendChild(t);
+  });
+
+  stemsArea.querySelectorAll('.mute-btn').forEach(b=>b.addEventListener('click',()=>{
+    const i=+b.dataset.i, m=P.toggleMute(i);
+    b.classList.toggle('active',m);
+    refreshMuteVisuals();
+  }));
+  stemsArea.querySelectorAll('.solo-btn').forEach(b=>b.addEventListener('click',()=>{
+    const i=+b.dataset.i; P.toggleSolo(i);
+    b.classList.toggle('active',P.stems[i].soloed);
+    refreshMuteVisuals();
+  }));
+  stemsArea.querySelectorAll('.stem-volume').forEach(sl=>sl.addEventListener('input',()=>{
+    const i=+sl.dataset.i;
+    P.setVol(i,sl.value/100);
+    sl.parentElement.querySelector('.vol-label').textContent=sl.value+'%';
+  }));
+}
+
+function refreshMuteVisuals(){
+  const any=P.stems.some(s=>s.soloed);
+  P.stems.forEach((s,i)=>{
+    const el=document.getElementById('st-'+i);
+    if(el) el.classList.toggle('muted',s.muted||(any&&!s.soloed));
+  });
+}
+
+// Transport
+playBtn.addEventListener('click',()=>{
+  if(!P.stems.length) return;
+  if(P.playing){P.pause();playBtn.innerHTML='&#9654;';}
+  else{P.play();playBtn.innerHTML='&#10074;&#10074;';}
+});
+stopBtn.addEventListener('click',()=>{P.stop();playBtn.innerHTML='&#9654;';});
+progressBar.addEventListener('click',e=>{
+  if(!P.stems.length) return;
+  const r=progressBar.getBoundingClientRect();
+  P.seek(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)));
+});
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&e.target===document.body){e.preventDefault();playBtn.click();}
+});
+</script>
+</body>
+</html>
